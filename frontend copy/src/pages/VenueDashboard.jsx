@@ -1,0 +1,836 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+
+export default function VenueDashboard() {
+  const navigate = useNavigate();
+  const [venue, setVenue] = useState(null);
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+  const [processingId, setProcessingId] = useState(null);
+  const [livePlaylistActive, setLivePlaylistActive] = useState(false);
+  const [venueActive, setVenueActive] = useState(true);
+  const [togglingVenueStatus, setTogglingVenueStatus] = useState(false);
+  const [djMode, setDJMode] = useState(false);
+  const [djPassword, setDjPassword] = useState("");
+  const [showDJModal, setShowDJModal] = useState(false);
+  const [settingUpDJ, setSettingUpDJ] = useState(false);
+  const [isOn,setisOn]=useState(false);
+  const [preferredGenres, setPreferredGenres] = useState([]);
+  const [selectedGenres, setSelectedGenres] = useState([]);
+  const [savingGenres, setSavingGenres] = useState(false);
+  const [stats, setStats] = useState({
+    total: 0,
+    pending: 0,
+    completed: 0,
+    rejected: 0,
+    revenue: 0
+  });
+
+  useEffect(() => {
+    const token = localStorage.getItem("venueToken");
+    if (!token) {
+      navigate("/venue/signin");
+      return;
+    }
+    fetchVenueData(token);
+  }, [navigate]);
+  // Check if execute API is running
+  useEffect(() => {
+    const checkExecuteAPI = async () => {
+      try {
+        const res = await axios.get("http://localhost:80", { timeout: 2000 });
+        if(res.status === 200) {
+          setisOn(true);
+        }
+      } catch (err) {
+        setisOn(false);
+      }
+    };
+    checkExecuteAPI();
+  }, []);
+
+  const fetchVenueData = async (token) => {
+    try {
+      setLoading(true);
+      setError("");
+      
+      // Fetch venue profile
+      const venueRes = await fetch(`${import.meta.env.VITE_API_URL}/api/venue/profile`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (venueRes.status === 401) {
+        localStorage.removeItem("venueToken");
+        navigate("/venue/signin");
+        return;
+      }
+
+      const venueData = await venueRes.json();
+      setVenue(venueData);
+      setLivePlaylistActive(venueData.livePlaylistActive || false);
+      setVenueActive(venueData.isActive || true);
+      setDJMode(venueData.djMode || false);
+
+      // Fetch venue requests
+      const requestsRes = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/requests/venue/${venueData._id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (requestsRes.ok) {
+        const requestsData = await requestsRes.json();
+        setRequests(requestsData);
+        
+        // Calculate stats
+        const total = requestsData.length;
+        const pending = requestsData.filter(r => r.status === "created" || r.status === "authorized").length;
+        const completed = requestsData.filter(r => r.status === "completed").length;
+        const rejected = requestsData.filter(r => r.status === "rejected").length;
+        const revenue = requestsData.reduce((sum, r) => sum + (r.price || 0), 0);
+
+        setStats({
+          total,
+          pending,
+          completed,
+          rejected,
+          revenue
+        });
+      }
+    } catch (err) {
+      setError(err.message || "Failed to load data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("venueToken");
+    localStorage.removeItem("venueId");
+    navigate("/");
+  };
+
+  const handleApproveRequest = async (requestId) => {
+    const token = localStorage.getItem("venueToken");
+    setProcessingId(requestId);
+    setError("");
+    setSuccessMsg("");
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/requests/${requestId}/approve`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ venueId: venue._id })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to approve request");
+      }
+
+      setSuccessMsg("Request approved! Worker processing started.");
+      fetchVenueData(token);
+
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (err) {
+      setError(err.message || "Failed to approve request");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleRejectRequest = async (requestId) => {
+    const token = localStorage.getItem("venueToken");
+    setProcessingId(requestId);
+    setError("");
+    setSuccessMsg("");
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/requests/${requestId}/reject`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ venueId: venue._id, reason: "Rejected by venue" })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to reject request");
+      }
+
+      setSuccessMsg("Request rejected.");
+      fetchVenueData(token);
+
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (err) {
+      setError(err.message || "Failed to reject request");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleToggleLivePlaylist = async () => {
+    const token = localStorage.getItem("venueToken");
+    const newState = !livePlaylistActive;
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/venue/toggle-live-playlist`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ active: newState })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to toggle live playlist");
+      }
+
+      setLivePlaylistActive(newState);
+      
+      // If enabling live playlist, disable DJ mode
+      if (newState && djMode) {
+        setDJMode(false);
+        setSuccessMsg("✅ Live playlist enabled! DJ Mode automatically disabled. Worker started processing requests.");
+      } else if (newState) {
+        setSuccessMsg("✅ Live playlist enabled! Worker started processing requests.");
+      } else {
+        setSuccessMsg("Live playlist disabled.");
+      }
+
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (err) {
+      setError(err.message || "Failed to toggle live playlist");
+    }
+  };
+
+  const handleToggleVenueStatus = async () => {
+    const token = localStorage.getItem("venueToken");
+    setTogglingVenueStatus(true);
+    setError("");
+    const newState = !venueActive;
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/venue/toggle-status`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ active: newState })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to toggle venue status");
+      }
+
+      setVenueActive(newState);
+      setSuccessMsg(
+        newState
+          ? "✅ Venue is now ONLINE - Customers can request songs"
+          : "🔴 Venue is now OFFLINE - Customers cannot request songs"
+      );
+
+      setTimeout(() => setSuccessMsg(""), 4000);
+    } catch (err) {
+      setError(err.message || "Failed to toggle venue status");
+    } finally {
+      setTogglingVenueStatus(false);
+    }
+  };
+
+  const getStatusBadgeColor = (status) => {
+    switch (status) {
+      case "completed":
+        return "bg-green-500/20 text-green-300";
+      case "processing":
+        return "bg-blue-500/20 text-blue-300";
+      case "rejected":
+        return "bg-red-500/20 text-red-300";
+      case "authorized":
+      case "created":
+        return "bg-yellow-500/20 text-yellow-300";
+      default:
+        return "bg-gray-500/20 text-gray-300";
+    }
+  };
+
+  const handleSetupDJ = async (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem("venueToken");
+    setSettingUpDJ(true);
+    setError("");
+
+    try {
+      if (!djMode) {
+        // Enable DJ mode
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/dj/initialize/${venue._id}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({ djPassword })
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to setup DJ mode");
+        }
+
+        setDJMode(true);
+        
+        // If enabling DJ mode, disable live playlist
+        if (livePlaylistActive) {
+          setLivePlaylistActive(false);
+          setSuccessMsg("✅ DJ Mode enabled! Live Playlist automatically disabled. Share the password with your DJ.");
+        } else {
+          setSuccessMsg("✅ DJ Mode enabled! Share the password with your DJ.");
+        }
+        
+        setDjPassword("");
+        setShowDJModal(false);
+      } else {
+        // Disable DJ mode
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/dj/toggle/${venue._id}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({})
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to disable DJ mode");
+        }
+
+        setDJMode(false);
+        setSuccessMsg("DJ Mode disabled. Live Playlist is now available.");
+        setShowDJModal(false);
+      }
+
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (err) {
+      setError(err.message || "Failed to update DJ mode");
+    } finally {
+      setSettingUpDJ(false);
+    }
+  };
+
+  const handleAccessDJ = () => {
+    navigate(`/venue/dj/${venue._id}`);
+  };
+
+  const fetchPreferredGenres = async (token) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/venue/genres/get`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPreferredGenres(data.preferredGenres || []);
+        setSelectedGenres(data.preferredGenres || []);
+        console.log("📊 Preferred genres:", data.preferredGenres);
+      }
+    } catch (err) {
+      console.error("Failed to fetch genres:", err);
+    }
+  };
+
+  const handleSaveGenres = async () => {
+    const token = localStorage.getItem("venueToken");
+    if (selectedGenres.length === 0) {
+      setError("Please select at least one genre");
+      return;
+    }
+
+    setSavingGenres(true);
+    setError("");
+    setSuccessMsg("");
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/venue/genres/set`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ preferredGenres: selectedGenres })
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to save genres");
+      }
+
+      const data = await response.json();
+      setPreferredGenres(selectedGenres);
+      setSuccessMsg(`✅ Genres updated: ${selectedGenres.join(", ")}`);
+      console.log("✅ Genres saved:", selectedGenres);
+    } catch (err) {
+      setError(err.message || "Failed to save genres");
+    } finally {
+      setSavingGenres(false);
+    }
+  };
+
+  const handleGenreToggle = (genre) => {
+    setSelectedGenres(prev => {
+      if (prev.includes(genre)) {
+        return prev.filter(g => g !== genre);
+      } else {
+        return [...prev, genre];
+      }
+    });
+  };
+
+  // Fetch genres on component mount
+  useEffect(() => {
+    const token = localStorage.getItem("venueToken");
+    if (token) {
+      fetchPreferredGenres(token);
+    }
+  }, []);
+
+  const availableGenres = [
+    "Electronic",
+    "House",
+    "Techno",
+    "EDM",
+    "Deep House",
+    "Trance",
+    "Dubstep",
+    "Drum and Bass",
+    "Ambient",
+    "Hip-Hop",
+    "Rap",
+    "Pop",
+    "Rock",
+    "Indie",
+    "Alternative",
+    "Metal",
+    "Jazz",
+    "Soul",
+    "R&B",
+    "Reggae",
+    "Latin",
+    "Afrobeats"
+  ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-[#140822] to-[#0a0712] flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+          <p className="text-gray-400 mt-4">Loading venue dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-[#140822] to-[#0a0712] text-white">
+      {/* Background glow */}
+      <div className="fixed inset-0 -z-10 pointer-events-none">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[900px] bg-purple-600/20 blur-[200px]" />
+      </div>
+
+      {/* Header */}
+      <div className="bg-black/40 backdrop-blur-md border-b border-purple-500/20 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold">Venue Dashboard</h1>
+            {venue && <p className="text-gray-400 text-sm">{venue.name}</p>}
+          </div>
+          <button
+            onClick={handleLogout}
+            className="px-6 py-2 bg-red-600/20 text-red-300 rounded-lg border border-red-500/30 hover:bg-red-600/30 transition-colors"
+          >
+            Logout
+          </button>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 py-12">
+        {error && (
+          <div className="bg-red-500/20 border border-red-500 text-red-200 px-6 py-4 rounded-lg mb-6">
+            {error}
+          </div>
+        )}
+
+        {successMsg && (
+          <div className="bg-green-500/20 border border-green-500 text-green-200 px-6 py-4 rounded-lg mb-6">
+            {successMsg}
+          </div>
+        )}
+
+        {/* Live Playlist Control */}
+        <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 border border-blue-500/30 rounded-xl p-8 mb-12">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">Live Playlist Mode</h2>
+              <p className="text-gray-400">
+                {livePlaylistActive 
+                  ? "✓ Enabled - Worker will automatically process approved requests" 
+                  : "Disabled - Requests must be manually processed"}
+              </p>
+            </div>
+            <button
+              onClick={handleToggleLivePlaylist}
+              className={`px-8 py-3 rounded-lg font-semibold transition-all ${
+                livePlaylistActive
+                  ? "bg-green-600 hover:bg-green-700 text-white"
+                  : "bg-gray-600 hover:bg-gray-700 text-white"
+              }`}
+            >
+              {livePlaylistActive ? "Turn Off" : "Turn On"}
+            </button>
+            <button
+              className={`px-8 py-3 rounded-lg font-semibold transition-all ${
+                isOn
+                  ? "bg-green-600 hover:bg-green-700 text-white"
+                  : "bg-gray-600 hover:bg-gray-700 text-white"
+              }`}
+            >
+              {isOn ? "On" : "Off"}
+            </button>
+          </div>
+        </div>
+
+        {/* Venue Status Control */}
+        <div className={`bg-gradient-to-r ${venueActive ? 'from-green-900/30 to-emerald-900/30 border-green-500/30' : 'from-red-900/30 to-orange-900/30 border-red-500/30'} border rounded-xl p-8 mb-12`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">Venue Status</h2>
+              <p className="text-gray-400">
+                {venueActive 
+                  ? "🟢 ONLINE - Customers can view your venue and request songs" 
+                  : "🔴 OFFLINE - Your venue is hidden from customers"}
+              </p>
+            </div>
+            <button
+              onClick={handleToggleVenueStatus}
+              disabled={togglingVenueStatus}
+              className={`px-8 py-3 rounded-lg font-semibold transition-all ${
+                venueActive
+                  ? "bg-green-600 hover:bg-green-700 text-white"
+                  : "bg-red-600 hover:bg-red-700 text-white"
+              } ${togglingVenueStatus ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {togglingVenueStatus ? "Updating..." : (venueActive ? "Go Offline" : "Go Online")}
+            </button>
+          </div>
+        </div>
+
+        {/* DJ Mode Control */}
+        <div className={`bg-gradient-to-r ${djMode ? 'from-purple-900/30 to-pink-900/30 border-purple-500/30' : 'from-gray-900/30 to-gray-900/30 border-gray-500/30'} border rounded-xl p-8 mb-12`}>
+          <div className="flex items-center justify-between flex-wrap gap-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">🎧 DJ Mode</h2>
+              <p className="text-gray-400">
+                {djMode 
+                  ? "✓ Enabled - DJ can accept/reject requests in real-time" 
+                  : "Disabled - Set a DJ password to enable DJ Mode"}
+              </p>
+            </div>
+            <div className="flex gap-3">
+              {djMode && (
+                <button
+                  onClick={handleAccessDJ}
+                  className="px-8 py-3 rounded-lg font-semibold bg-purple-600 hover:bg-purple-700 text-white transition-all"
+                >
+                  Access DJ Panel
+                </button>
+              )}
+              <button
+                onClick={() => setShowDJModal(true)}
+                className={`px-8 py-3 rounded-lg font-semibold transition-all ${
+                  djMode
+                    ? "bg-red-600 hover:bg-red-700 text-white"
+                    : "bg-purple-600 hover:bg-purple-700 text-white"
+                }`}
+              >
+                {djMode ? "Disable DJ Mode" : "Enable DJ Mode"}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* DJ Setup Modal */}
+        {showDJModal && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#140822] border border-purple-500/30 rounded-xl p-8 max-w-md w-full">
+              <h3 className="text-2xl font-bold mb-4">
+                {djMode ? "Disable DJ Mode" : "Enable DJ Mode"}
+              </h3>
+              
+              {!djMode && (
+                <form onSubmit={handleSetupDJ}>
+                  <p className="text-gray-400 mb-4">
+                    Set a password that your DJ will use to access the DJ panel.
+                  </p>
+                  <input
+                    type="password"
+                    value={djPassword}
+                    onChange={(e) => setDjPassword(e.target.value)}
+                    placeholder="Enter DJ password"
+                    required
+                    className="w-full px-4 py-2 bg-white/10 border border-purple-500/30 rounded-lg text-white placeholder-gray-500 mb-4 focus:outline-none focus:border-purple-500"
+                  />
+                  <div className="flex gap-3">
+                    <button
+                      type="submit"
+                      disabled={settingUpDJ || !djPassword}
+                      className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold disabled:opacity-50 transition-all"
+                    >
+                      {settingUpDJ ? "Setting up..." : "Enable DJ Mode"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDJModal(false);
+                        setDjPassword("");
+                      }}
+                      className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-semibold transition-all"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {djMode && (
+                <div>
+                  <p className="text-gray-400 mb-4">
+                    Are you sure you want to disable DJ Mode? Your DJ will no longer be able to manage requests.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleSetupDJ}
+                      disabled={settingUpDJ}
+                      className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold disabled:opacity-50 transition-all"
+                    >
+                      {settingUpDJ ? "Disabling..." : "Disable DJ Mode"}
+                    </button>
+                    <button
+                      onClick={() => setShowDJModal(false)}
+                      className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-semibold transition-all"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Genre Management Control */}
+        <div className="bg-gradient-to-r from-blue-900/30 to-cyan-900/30 border border-blue-500/30 rounded-xl p-8 mb-12">
+          <div>
+            <h2 className="text-2xl font-bold mb-2">🎵 Preferred Genres</h2>
+            <p className="text-gray-400 mb-6">
+              Select music genres you want to allow at your venue. When DJ Mode is OFF, only songs matching these genres will be accepted.
+            </p>
+
+            {/* Current Genres Display */}
+            {preferredGenres.length > 0 && (
+              <div className="mb-6">
+                <p className="text-sm text-gray-300 mb-3">Currently Selected:</p>
+                <div className="flex flex-wrap gap-2">
+                  {preferredGenres.map(genre => (
+                    <span key={genre} className="px-3 py-1 bg-blue-600/40 border border-blue-500/60 rounded-full text-sm text-blue-200">
+                      ✓ {genre}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Genre Selection Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
+              {availableGenres.map(genre => (
+                <label key={genre} className="flex items-center gap-2 cursor-pointer p-3 rounded-lg hover:bg-white/5 transition-all">
+                  <input
+                    type="checkbox"
+                    checked={selectedGenres.includes(genre)}
+                    onChange={() => handleGenreToggle(genre)}
+                    className="w-4 h-4 accent-blue-600 cursor-pointer"
+                  />
+                  <span className="text-white text-sm">{genre}</span>
+                </label>
+              ))}
+            </div>
+
+            {/* Save Button */}
+            <button
+              onClick={handleSaveGenres}
+              disabled={savingGenres || selectedGenres.length === 0}
+              className={`w-full px-6 py-3 rounded-lg font-semibold transition-all ${
+                savingGenres
+                  ? "bg-blue-600/50 cursor-not-allowed opacity-50"
+                  : selectedGenres.length === 0
+                  ? "bg-gray-600 cursor-not-allowed opacity-50"
+                  : "bg-blue-600 hover:bg-blue-700 text-white"
+              }`}
+            >
+              {savingGenres ? "Saving..." : "Save Genre Preferences"}
+            </button>
+
+            {/* Info Message */}
+            {selectedGenres.length === 0 && preferredGenres.length === 0 && (
+              <p className="text-sm text-yellow-400 mt-4">
+                ⚠️ No genres selected. Song requests will be accepted regardless of genre (only limited by DJ Mode if enabled).
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-12">
+          <div className="bg-white/5 backdrop-blur-md border border-purple-500/20 rounded-xl p-6">
+            <p className="text-gray-400 text-sm mb-2">Total Requests</p>
+            <p className="text-3xl font-bold text-purple-400">{stats.total}</p>
+          </div>
+          <div className="bg-white/5 backdrop-blur-md border border-purple-500/20 rounded-xl p-6">
+            <p className="text-gray-400 text-sm mb-2">Pending</p>
+            <p className="text-3xl font-bold text-yellow-400">{stats.pending}</p>
+          </div>
+          <div className="bg-white/5 backdrop-blur-md border border-purple-500/20 rounded-xl p-6">
+            <p className="text-gray-400 text-sm mb-2">Completed</p>
+            <p className="text-3xl font-bold text-green-400">{stats.completed}</p>
+          </div>
+          <div className="bg-white/5 backdrop-blur-md border border-purple-500/20 rounded-xl p-6">
+            <p className="text-gray-400 text-sm mb-2">Rejected</p>
+            <p className="text-3xl font-bold text-red-400">{stats.rejected}</p>
+          </div>
+          <div className="bg-white/5 backdrop-blur-md border border-purple-500/20 rounded-xl p-6">
+            <p className="text-gray-400 text-sm mb-2">Total Revenue</p>
+            <p className="text-3xl font-bold text-blue-400">${stats.revenue.toFixed(2)}</p>
+          </div>
+        </div>
+
+        {/* Venue Info */}
+        {venue && (
+          <div className="bg-white/5 backdrop-blur-md border border-purple-500/20 rounded-xl p-8 mb-12">
+            <h2 className="text-xl font-bold mb-6">Venue Information</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <p className="text-gray-400 text-sm">Email</p>
+                <p className="text-white font-semibold">{venue.email}</p>
+              </div>
+              <div>
+                <p className="text-gray-400 text-sm">Phone</p>
+                <p className="text-white font-semibold">{venue.phone || "N/A"}</p>
+              </div>
+              <div>
+                <p className="text-gray-400 text-sm">Location</p>
+                <p className="text-white font-semibold">
+                  {venue.city && venue.state 
+                    ? `${venue.city}, ${venue.state}` 
+                    : venue.address || "N/A"}
+                </p>
+              </div>
+              <div>
+                <p className="text-gray-400 text-sm">Website</p>
+                <p className="text-white font-semibold">{venue.websiteUrl || "N/A"}</p>
+              </div>
+            </div>
+            {venue.description && (
+              <div className="mt-6">
+                <p className="text-gray-400 text-sm">Description</p>
+                <p className="text-white">{venue.description}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Recent Requests */}
+        <div className="bg-white/5 backdrop-blur-md border border-purple-500/20 rounded-xl p-8">
+          <h2 className="text-xl font-bold mb-6">Song Requests</h2>
+          {requests.length === 0 ? (
+            <p className="text-gray-400 text-center py-8">No song requests yet</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-purple-500/20">
+                    <th className="text-left py-3 px-4 text-gray-400 font-semibold">Song</th>
+                    <th className="text-left py-3 px-4 text-gray-400 font-semibold">Artist</th>
+                    <th className="text-left py-3 px-4 text-gray-400 font-semibold">Requester</th>
+                    <th className="text-left py-3 px-4 text-gray-400 font-semibold">Price</th>
+                    <th className="text-left py-3 px-4 text-gray-400 font-semibold">Status</th>
+                    <th className="text-left py-3 px-4 text-gray-400 font-semibold">Actions</th>
+                    <th className="text-left py-3 px-4 text-gray-400 font-semibold">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {requests.map(request => (
+                    <tr key={request._id} className="border-b border-purple-500/10 hover:bg-white/5 transition-colors">
+                      <td className="py-3 px-4 font-semibold">{request.songTitle || request.title}</td>
+                      <td className="py-3 px-4">{request.artistName || request.artist}</td>
+                      <td className="py-3 px-4 text-sm">{request.userName}</td>
+                      <td className="py-3 px-4">${(request.price || 0).toFixed(2)}</td>
+                      <td className="py-3 px-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadgeColor(request.status)}`}>
+                          {request.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        {(request.status === "created" || request.status === "authorized") && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleApproveRequest(request._id)}
+                              disabled={processingId === request._id}
+                              className="px-3 py-1 bg-green-600/40 hover:bg-green-600/60 text-green-300 rounded text-xs font-semibold disabled:opacity-50 transition-colors"
+                            >
+                              {processingId === request._id ? "..." : "Accept"}
+                            </button>
+                            <button
+                              onClick={() => handleRejectRequest(request._id)}
+                              disabled={processingId === request._id}
+                              className="px-3 py-1 bg-red-600/40 hover:bg-red-600/60 text-red-300 rounded text-xs font-semibold disabled:opacity-50 transition-colors"
+                            >
+                              {processingId === request._id ? "..." : "Reject"}
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-gray-400 text-sm">
+                        {new Date(request.createdAt).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

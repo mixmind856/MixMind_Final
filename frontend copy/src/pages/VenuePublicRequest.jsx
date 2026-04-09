@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import VenuePaymentModalWrapper from "../componentsRequest/VenuePaymentModal";
+import logo from "../assets/Mixmind.jpeg";
 
 export default function VenuePublicRequest() {
   const { venueId } = useParams();
@@ -15,7 +16,9 @@ export default function VenuePublicRequest() {
     artistName: DEMO_MODE ? "The Weeknd" : "",
     userName: DEMO_MODE ? "Alex Johnson" : "",
     email: DEMO_MODE ? "alex@example.com" : "",
-    price: 5
+    phone: DEMO_MODE ? "07911123456" : "",
+    countryCode: "+44",
+    price: 2.99  // Will be updated based on DJ mode
   });
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -24,6 +27,8 @@ export default function VenuePublicRequest() {
   const [recentRequests, setRecentRequests] = useState([]);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [pendingRequestId, setPendingRequestId] = useState(null);
+  const [checkoutUrl, setCheckoutUrl] = useState(null);
+  const [checkoutSessionId, setCheckoutSessionId] = useState(null);
 
   useEffect(() => {
     fetchVenueData();
@@ -45,6 +50,14 @@ export default function VenuePublicRequest() {
       const venueData = await venueRes.json();
       setVenue(venueData);
       setIsVenueActive(venueData.isActive || false);
+
+      // ===== SET PRICE BASED ON DJ MODE =====
+      // DJ Mode ON: £9 | DJ Mode OFF: £3
+      const dynamicPrice = venueData.djMode ? 8.99 : 2.99;
+      setFormData(prev => ({
+        ...prev,
+        price: dynamicPrice
+      }));
 
       // Only fetch requests if venue is active
       if (venueData.isActive) {
@@ -91,6 +104,8 @@ export default function VenuePublicRequest() {
             email: formData.email,
             title: formData.songTitle,
             artist: formData.artistName,
+            phone: formData.phone,
+            countryCode: formData.countryCode,
             price: parseFloat(formData.price),
             venueId: venueId
           })
@@ -102,11 +117,21 @@ export default function VenuePublicRequest() {
         throw new Error(errorData.error || "Failed to submit request");
       }
 
-      const { requestId } = await response.json();
+      const responseData = await response.json();
+      const { requestId, checkoutUrl: url, checkoutSessionId: sessionId } = responseData;
       
-      // Step 2: Show payment modal
+      console.log("✅ Song request created");
+      console.log(`   Request ID: ${requestId}`);
+      console.log(`   Checkout URL: ${url}`);
+      console.log(`   Session ID: ${sessionId}`);
+      
+      // Step 2: Show payment modal with request details
       setPendingRequestId(requestId);
+      setCheckoutUrl(url);
+      setCheckoutSessionId(sessionId);
       setShowPaymentModal(true);
+      
+      console.log("🔔 Payment modal opened with checkout data");
 
     } catch (err) {
       setError(err.message || "An error occurred");
@@ -117,12 +142,15 @@ export default function VenuePublicRequest() {
   const handlePaymentSuccess = async () => {
     // Payment authorized successfully - reset form but keep modal open to show thank you page
     // The modal handles closing when user clicks "Done" or "Request Another Song"
+    const resetPrice = venue && venue.djMode ? 9 : 3;
     setFormData({
       songTitle: "",
       artistName: "",
       userName: "",
       email: "",
-      price: 5
+      phone: "",
+      countryCode: "+44",
+      price: resetPrice
     });
     setPendingRequestId(null);
     setSubmitting(false);
@@ -179,196 +207,190 @@ export default function VenuePublicRequest() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#140822] to-[#0a0712] text-white">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 border-b border-purple-500/20 p-8">
-        <div className="max-w-6xl mx-auto">
-          <h1 className="text-4xl font-bold mb-2">{venue.name}</h1>
-          <p className="text-gray-400 text-lg mb-4">{venue.description}</p>
-          <div className="flex items-center gap-4 text-sm text-gray-300">
-            {venue.address && (
-              <>
-                <span>📍 {venue.address}</span>
-              </>
-            )}
-            {venue.phone && (
-              <>
-                <span>📱 {venue.phone}</span>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
+    <div className="min-h-screen bg-[#07070B] text-white px-6 py-16">
       {/* Main Content */}
-      <div className="max-w-6xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Request Form */}
-          <div className="lg:col-span-2">
-            <div className="bg-[#1a0f2e] border border-purple-500/20 rounded-lg p-8">
-              <h2 className="text-2xl font-bold mb-6">Request a Song</h2>
-
-              {success && (
-                <div className="mb-6 p-4 bg-green-500/20 border border-green-500/50 rounded-lg">
-                  <p className="text-green-300">✅ Song request submitted and payment authorized! Your song will be added after venue approval.</p>
-                </div>
-              )}
-
-              {error && (
-                <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-                  <p className="text-red-300">{error}</p>
-                </div>
-              )}
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Song Title *</label>
-                  <input
-                    type="text"
-                    name="songTitle"
-                    value={formData.songTitle}
-                    onChange={handleChange}
-                    required
-                    placeholder="e.g., Blinding Lights"
-                    className="w-full px-4 py-2 bg-[#0a0712] border border-purple-500/30 rounded-lg focus:outline-none focus:border-purple-500 text-white placeholder-gray-500"
-                    disabled={submitting}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Artist Name *</label>
-                  <input
-                    type="text"
-                    name="artistName"
-                    value={formData.artistName}
-                    onChange={handleChange}
-                    required
-                    placeholder="e.g., The Weeknd"
-                    className="w-full px-4 py-2 bg-[#0a0712] border border-purple-500/30 rounded-lg focus:outline-none focus:border-purple-500 text-white placeholder-gray-500"
-                    disabled={submitting}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Your Name *</label>
-                  <input
-                    type="text"
-                    name="userName"
-                    value={formData.userName}
-                    onChange={handleChange}
-                    required
-                    placeholder="Your name"
-                    className="w-full px-4 py-2 bg-[#0a0712] border border-purple-500/30 rounded-lg focus:outline-none focus:border-purple-500 text-white placeholder-gray-500"
-                    disabled={submitting}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Email *</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                    placeholder="your@email.com"
-                    className="w-full px-4 py-2 bg-[#0a0712] border border-purple-500/30 rounded-lg focus:outline-none focus:border-purple-500 text-white placeholder-gray-500"
-                    disabled={submitting}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Request Fee (USD) *</label>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-400">$</span>
-                    <input
-                      type="number"
-                      name="price"
-                      value={formData.price}
-                      onChange={handleChange}
-                      required
-                      min="1"
-                      step="0.01"
-                      placeholder="5.00"
-                      className="flex-1 px-4 py-2 bg-[#0a0712] border border-purple-500/30 rounded-lg focus:outline-none focus:border-purple-500 text-white placeholder-gray-500"
-                      disabled={submitting}
-                    />
+      <div className="max-w-md mx-auto">
+        {/* Header */}
+        <div className="inline-flex items-center justify-center w-18 h-18 rounded-lg mb-4 glow-purple md:ml-45 ml-40" 
+                       style={{ background: "linear-gradient(135deg, #A855F7, #7C3AED)" }}>
+                   <img src={logo} alt="MixMind Logo" className="w-17 h-17" />
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">Amount will be charged after venue approval</p>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity mt-6"
-                >
-                  {submitting ? "Processing..." : "Continue to Payment →"}
-                </button>
-              </form>
-            </div>
-          </div>
-
-          {/* Venue Info Sidebar */}
-          <div className="space-y-6">
-            <div className="bg-[#1a0f2e] border border-purple-500/20 rounded-lg p-6">
-              <h3 className="text-lg font-bold mb-4">Venue Info</h3>
-              <div className="space-y-3 text-sm">
-                {venue.city && (
-                  <div>
-                    <p className="text-gray-400">City</p>
-                    <p className="text-white">{venue.city}, {venue.state}</p>
-                  </div>
-                )}
-                {venue.websiteUrl && (
-                  <div>
-                    <p className="text-gray-400">Website</p>
-                    <a
-                      href={venue.websiteUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-purple-400 hover:text-purple-300 break-all"
-                    >
-                      {venue.websiteUrl}
-                    </a>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="bg-purple-900/20 border border-purple-500/20 rounded-lg p-6">
-              <h4 className="font-semibold mb-2">How it works</h4>
-              <ol className="text-sm text-gray-300 space-y-2 list-decimal list-inside">
-                <li>Submit your song request</li>
-                <li>Authorize payment securely</li>
-                <li>Venue admin reviews request</li>
-                <li>Payment charged upon approval</li>
-                <li>Song added to playlist</li>
-              </ol>
-            </div>
-          </div>
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold mb-3" style={{ color: 'var(--text-primary)' }}>Request Your Song</h1>
+          <p className="text-sm" style={{ color: 'rgba(255,255,255,0.72)' }}>Enter your details and we'll handle the rest</p>
         </div>
 
-        {/* Recent Requests */}
-        {recentRequests.length > 0 && (
-          <div className="mt-12">
-            <h2 className="text-2xl font-bold mb-6">Recently Played</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {recentRequests.map((request) => (
-                <div
-                  key={request._id}
-                  className="bg-[#1a0f2e] border border-purple-500/20 rounded-lg p-4"
-                >
-                  <p className="font-semibold text-lg">{request.songTitle}</p>
-                  <p className="text-gray-400">{request.artistName}</p>
-                  <p className="text-sm text-gray-500 mt-2">Requested by {request.userName}</p>
-                  <div className="mt-3 inline-block px-3 py-1 rounded-full text-xs bg-green-500/20 text-green-300">
-                    Played
-                  </div>
-                </div>
-              ))}
+        {/* Form Card */}
+        <div className="rounded-2xl p-8" style={{ background: 'linear-gradient(135deg, rgba(18,18,34,0.92) 0%, rgba(18,18,34,0.55) 100%)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          {error && (
+            <div className="mb-6 p-4 rounded-xl" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
+              <p className="text-red-300 text-sm">{error}</p>
             </div>
-          </div>
-        )}
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Song Title */}
+            <div>
+              <label className="block text-xs font-600 mb-2" style={{ color: 'rgba(255,255,255,0.72)' }}>Song Title</label>
+              <input
+                type="text"
+                name="songTitle"
+                value={formData.songTitle}
+                onChange={handleChange}
+                required
+                placeholder="Enter song title"
+                className="w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 focus:outline-none transition-all"
+                style={{
+                  background: 'rgba(168,85,247,0.1)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  color: '#FFFFFF'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#A855F7';
+                  e.target.style.boxShadow = '0 0 20px rgba(168,85,247,0.3)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = 'rgba(255,255,255,0.08)';
+                  e.target.style.boxShadow = 'none';
+                }}
+                disabled={submitting}
+              />
+            </div>
+
+            {/* Artist Name */}
+            <div>
+              <label className="block text-xs font-600 mb-2" style={{ color: 'rgba(255,255,255,0.72)' }}>Artist Name</label>
+              <input
+                type="text"
+                name="artistName"
+                value={formData.artistName}
+                onChange={handleChange}
+                required
+                placeholder="Enter artist name"
+                className="w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 focus:outline-none transition-all"
+                style={{
+                  background: 'rgba(168,85,247,0.1)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  color: '#FFFFFF'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#A855F7';
+                  e.target.style.boxShadow = '0 0 20px rgba(168,85,247,0.3)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = 'rgba(255,255,255,0.08)';
+                  e.target.style.boxShadow = 'none';
+                }}
+                disabled={submitting}
+              />
+            </div>
+
+            {/* Your Name */}
+            <div>
+              <label className="block text-xs font-600 mb-2" style={{ color: 'rgba(255,255,255,0.72)' }}>Your Name</label>
+              <input
+                type="text"
+                name="userName"
+                value={formData.userName}
+                onChange={handleChange}
+                required
+                placeholder="Enter your name"
+                className="w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 focus:outline-none transition-all"
+                style={{
+                  background: 'rgba(168,85,247,0.1)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  color: '#FFFFFF'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#A855F7';
+                  e.target.style.boxShadow = '0 0 20px rgba(168,85,247,0.3)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = 'rgba(255,255,255,0.08)';
+                  e.target.style.boxShadow = 'none';
+                }}
+                disabled={submitting}
+              />
+            </div>
+
+            {/* Phone Number */}
+            <div>
+              <label className="block text-xs font-600 mb-2" style={{ color: 'rgba(255,255,255,0.72)' }}>Phone Number</label>
+              <input
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                required
+                placeholder="Enter phone number"
+                className="w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 focus:outline-none transition-all"
+                style={{
+                  background: 'rgba(168,85,247,0.1)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  color: '#FFFFFF'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#A855F7';
+                  e.target.style.boxShadow = '0 0 20px rgba(168,85,247,0.3)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = 'rgba(255,255,255,0.08)';
+                  e.target.style.boxShadow = 'none';
+                }}
+                disabled={submitting}
+              />
+            </div>
+
+            {/* Email Address */}
+            <div>
+              <label className="block text-xs font-600 mb-2" style={{ color: 'rgba(255,255,255,0.72)' }}>Email Address</label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                placeholder="Enter email address"
+                className="w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 focus:outline-none transition-all"
+                style={{
+                  background: 'rgba(168,85,247,0.1)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  color: '#FFFFFF'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#A855F7';
+                  e.target.style.boxShadow = '0 0 20px rgba(168,85,247,0.3)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = 'rgba(255,255,255,0.08)';
+                  e.target.style.boxShadow = 'none';
+                }}
+                disabled={submitting}
+              />
+            </div>
+
+            {/* Request Fee */}
+            <div className="mt-6 p-4 rounded-xl" style={{ background: 'rgba(34,227,161,0.1)', border: '1px solid rgba(34,227,161,0.2)' }}>
+              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.72)' }}>Request Fee</p>
+              <p className="font-bold text-2xl" style={{ color: '#22E3A1' }}>£{formData.price}</p>
+            </div>
+
+            {/* CTA Button */}
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full text-white font-bold py-4 rounded-2xl text-lg mt-6 flex items-center justify-center gap-2 transition-all transform hover:scale-105 disabled:opacity-50"
+              style={{
+                background: 'linear-gradient(135deg, #A855F7 0%, #7C3AED 100%)',
+                boxShadow: '0 8px 50px rgba(168,85,247,0.6)'
+              }}>
+              {submitting ? "Processing..." : <>Request Song <span>→</span></>}
+            </button>
+          </form>
+
+          {/* Footer note */}
+          <p className="text-xs text-center mt-6" style={{ color: 'rgba(255,255,255,0.4)' }}>Amount will be charged only after your request is accepted</p>
+        </div>
       </div>
 
       {/* Payment Modal */}
@@ -377,11 +399,15 @@ export default function VenuePublicRequest() {
         onClose={() => {
           setShowPaymentModal(false);
           setPendingRequestId(null);
+          setCheckoutUrl(null);
+          setCheckoutSessionId(null);
           setSubmitting(false);
         }}
         requestId={pendingRequestId}
         amount={parseFloat(formData.price)}
         venueId={venueId}
+        checkoutUrl={checkoutUrl}
+        checkoutSessionId={checkoutSessionId}
         onPaymentSuccess={handlePaymentSuccess}
       />
     </div>

@@ -6,13 +6,13 @@ import {
   useStripe,
   useElements
 } from "@stripe/react-stripe-js";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { X, Loader2, AlertCircle, CheckCircle2, Music, ArrowRight } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL;
 
-// 🔧 DEMO MODE - Set to false when you have real Stripe keys
-const DEMO_MODE = true;
+// 🔧 DEMO MODE - Read from environment variable
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true" || import.meta.env.VITE_DEMO_MODE !== "false";
 
 const stripePromise = DEMO_MODE 
   ? Promise.resolve(null)  // Don't load Stripe in demo mode
@@ -40,9 +40,35 @@ export default function VenuePaymentModalWrapper({
   requestId, 
   amount, 
   venueId,
+  checkoutUrl,
+  checkoutSessionId,
   onPaymentSuccess 
 }) {
   if (!isOpen) return null;
+
+  // If in LIVE mode with a checkout URL, redirect immediately
+  if (!DEMO_MODE && checkoutUrl) {
+    console.log("🚀 LIVE mode with checkout URL detected - redirecting immediately...");
+    console.log(`   Checkout URL: ${checkoutUrl}`);
+    // Redirect via window.location instead of rendering modal
+    setTimeout(() => {
+      window.location.href = checkoutUrl;
+    }, 0);
+    // Still render loading state while redirecting
+    return (
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+        <div className="flex flex-col items-center justify-center py-12">
+          <Loader2 size={48} className="text-purple-400 animate-spin mb-4" />
+          <h4 className="text-lg font-semibold text-white mb-2">
+            Redirecting to Stripe...
+          </h4>
+          <p className="text-gray-400">
+            Please wait while we redirect you to complete your payment
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Elements stripe={stripePromise}>
@@ -51,6 +77,8 @@ export default function VenuePaymentModalWrapper({
         requestId={requestId}
         amount={amount}
         venueId={venueId}
+        checkoutUrl={checkoutUrl}
+        checkoutSessionId={checkoutSessionId}
         onPaymentSuccess={onPaymentSuccess}
       />
     </Elements>
@@ -62,26 +90,24 @@ function VenuePaymentModalContent({
   requestId, 
   amount, 
   venueId,
+  checkoutUrl,
+  checkoutSessionId,
   onPaymentSuccess 
 }) {
   const stripe = useStripe();
   const elements = useElements();
   const navigate = useNavigate();
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [step, setStep] = useState("form"); // form, processing, success, error
   const [cardName, setCardName] = useState("");
   
-  // Demo mode - prefill with test data
-  const DEMO_MODE = true;
-
+  // Prefill with test data in demo mode
   useEffect(() => {
     if (DEMO_MODE) {
       setCardName("John Test Developer");
     }
   }, []);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -104,107 +130,50 @@ function VenuePaymentModalContent({
         
         console.log("✅ Demo payment authorized for request:", requestId);
         
+        // Call backend to mark payment as complete
+        try {
+          const completeResponse = await fetch(`${API}/api/stripe/demo/complete`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              requestId: requestId
+            })
+          });
+
+          if (completeResponse.ok) {
+            const result = await completeResponse.json();
+            console.log("✅ Backend marked payment as complete:", result);
+          } else {
+            console.warn("⚠️ Backend completion failed, but continuing:", await completeResponse.text());
+          }
+        } catch (backendErr) {
+          console.warn("⚠️ Could not notify backend of payment:", backendErr.message);
+        }
+        
         // Success - payment is authorized
         onPaymentSuccess?.();
         
         // Navigate to thank you page after a brief delay
         setTimeout(() => {
           onClose();
-          navigate('/thank-you');
+          console.log(`Venue Id is :${venueId}`)
+          navigate(`/thank-you/${venueId}`);
         }, 2000);
         
       } else {
-        // 💳 REAL STRIPE MODE
-        const stripe = useStripe();
-        const elements = useElements();
-
-        if (!stripe || !elements) {
-          setError("⚠️ Stripe not loaded. Please refresh the page.");
-          setLoading(false);
-          return;
-        }
-
-        // Step 1: Create payment intent on backend
-        console.log("🔄 Creating payment intent for request:", requestId);
-        console.log("📍 API URL:", API);
+        // 💳 REAL STRIPE MODE - Redirect to Checkout
+        console.log("💳 REAL STRIPE MODE - Redirecting to checkout...");
         
-        const intentRes = await fetch(`${API}/api/payments/venue-intent`, {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            requestId,
-            venueId
-          })
-        });
-
-        console.log("📊 Response status:", intentRes.status);
-
-        if (!intentRes.ok) {
-          const contentType = intentRes.headers.get("content-type");
-          let data;
-          
-          if (contentType && contentType.includes("application/json")) {
-            data = await intentRes.json();
-            throw new Error(data.error || `Server error: ${intentRes.status}`);
-          } else {
-            const text = await intentRes.text();
-            console.error("Non-JSON response:", text.substring(0, 200));
-            throw new Error(`Backend returned ${intentRes.status}: ${text.substring(0, 100)}`);
-          }
+        if (!checkoutUrl) {
+          throw new Error("Checkout URL not available. Please try creating the request again.");
         }
 
-        const { clientSecret } = await intentRes.json();
-
-        if (!clientSecret) {
-          throw new Error("No client secret returned from server - check backend logs");
-        }
-
-        console.log("✅ Payment intent created, client secret received");
-
-        // Step 2: Confirm payment with card element
-        console.log("💳 Confirming card payment...");
+        console.log("✅ Checkout URL:", checkoutUrl);
+        console.log("   Session ID:", checkoutSessionId);
+        console.log("🔀 Redirecting to Stripe checkout...");
         
-        const cardElement = elements.getElement(CardElement);
-        if (!cardElement) {
-          throw new Error("Card element not found - Stripe library issue");
-        }
-
-        const { paymentIntent, error: paymentError } = await stripe.confirmCardPayment(
-          clientSecret,
-          {
-            payment_method: {
-              card: cardElement,
-              billing_details: {
-                name: cardName
-              }
-            }
-          }
-        );
-
-        if (paymentError) {
-          throw new Error(`Card error: ${paymentError.message}`);
-        }
-
-        if (!paymentIntent) {
-          throw new Error("Payment intent not returned - unknown error");
-        }
-
-        if (paymentIntent.status === "requires_action") {
-          throw new Error("Payment requires additional authentication - please try again");
-        }
-
-        console.log("✅ Payment intent authorized:", paymentIntent.id);
-
-        // Step 3: Success - payment is authorized
-        onPaymentSuccess?.();
-        
-        // Navigate to thank you page after a brief delay
-        setTimeout(() => {
-          onClose();
-          navigate('/thank-you');
-        }, 2000);
+        // ✅ Redirect user to Stripe Checkout
+        window.location.href = checkoutUrl;
       }
 
     } catch (err) {
@@ -222,7 +191,10 @@ function VenuePaymentModalContent({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-purple-500/20">
           <h3 className="text-xl font-bold text-white flex items-center gap-2">
-            {DEMO_MODE ? "🎪 Demo Payment" : "💳 Payment Required"}
+            {DEMO_MODE ? "🎪 Demo Payment" : "💳 Secure Payment"}
+            <span className={`text-xs px-2 py-1 rounded ${DEMO_MODE ? 'bg-yellow-500/30 text-yellow-300' : 'bg-green-500/30 text-green-300'}`}>
+              {DEMO_MODE ? "TEST MODE" : "LIVE MODE"}
+            </span>
           </h3>
           <button
             type="button"
@@ -242,10 +214,10 @@ function VenuePaymentModalContent({
               <div className="bg-purple-900/30 border border-purple-500/20 rounded-lg p-4 mb-6">
                 <div className="text-gray-300 text-sm">Total Amount</div>
                 <div className="text-3xl font-bold text-purple-400">
-                  ${(amount || 0).toFixed(2)}
+                  £{(amount || 0).toFixed(2)}
                 </div>
                 <p className="text-xs text-gray-400 mt-2">
-                  ℹ️ Payment authorized now • Charged only after venue admin approves this request
+                  ℹ️ Payment authorized now • Charged only after DJ approves this request
                 </p>
               </div>
 
@@ -267,16 +239,29 @@ function VenuePaymentModalContent({
               {/* Card Element */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  {DEMO_MODE ? "🎪 Demo Card Details" : "Card Details"}
+                  {DEMO_MODE ? "🎪 Demo Card Details" : "💳 Card Details"}
                 </label>
                 {DEMO_MODE ? (
-                  <div className="px-4 py-3 bg-[#0a0712] border border-yellow-500/30 rounded-lg text-yellow-300 text-sm space-y-2">
-                    <p>📝 Demo Mode - Any card details accepted:</p>
-                    <ul className="list-disc list-inside text-xs">
-                      <li>Card: 4242 4242 4242 4242</li>
-                      <li>Expiry: 12/27</li>
-                      <li>CVC: 123</li>
-                    </ul>
+                  <div className="px-4 py-3 bg-yellow-900/30 border border-yellow-500/50 rounded-lg text-yellow-200 text-sm space-y-3">
+                    <div className="font-semibold text-yellow-300">🎪 DEMO MODE - Test Card Numbers</div>
+                    <div className="space-y-2 text-xs">
+                      <div className="bg-black/30 p-2 rounded font-mono">
+                        <p className="text-gray-400">✅ Success:</p>
+                        <p className="text-yellow-300">4242 4242 4242 4242</p>
+                      </div>
+                      <div className="bg-black/30 p-2 rounded font-mono">
+                        <p className="text-gray-400">❌ Decline:</p>
+                        <p className="text-yellow-300">4000 0000 0000 0002</p>
+                      </div>
+                      <div className="bg-black/30 p-2 rounded font-mono">
+                        <p className="text-gray-400">🔐 3D Secure:</p>
+                        <p className="text-yellow-300">4000 0025 0000 3155</p>
+                      </div>
+                      <div className="text-gray-400 mt-2">
+                        <p>Expiry: <span className="text-yellow-300">Any future date (12/25)</span></p>
+                        <p>CVC: <span className="text-yellow-300">Any 3 digits (123)</span></p>
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <div className="px-4 py-3 bg-[#0a0712] border border-purple-500/30 rounded-lg">
@@ -305,9 +290,9 @@ function VenuePaymentModalContent({
                     Processing...
                   </>
                 ) : DEMO_MODE ? (
-                  "✅ Demo Authorize Payment"
+                  "🎪 Test Payment (Simulated)"
                 ) : (
-                  "Authorize Payment"
+                  "💳 Process Payment"
                 )}
               </button>
 

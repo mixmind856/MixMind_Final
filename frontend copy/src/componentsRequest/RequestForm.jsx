@@ -53,6 +53,10 @@ function RequestForm() {
 
       const { id } = await reqRes.json();
       setRequestId(id);
+      
+      // Store user email in localStorage for use in ThankYou page
+      localStorage.setItem("userEmail", form.email);
+      
       setShowPayment(true);
     } catch (err) {
       setError(err.message || "Failed to create request");

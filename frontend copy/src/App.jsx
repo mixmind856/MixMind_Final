@@ -32,12 +32,10 @@ export default function App() {
       />
       <Navigation onLoginClick={openLoginModal} />
       <Hero />
-      <div className="h-12 md:h-16 bg-gradient-to-b from-bg-deep to-bg-base"></div>
-      <Problems />
-      <div className="h-12 md:h-16 bg-gradient-to-b from-bg-base to-bg-deep"></div>
-      <HowItWorks />
-      <Features />
       <BusinessValue />
+      <Problems />
+      <HowItWorks className="-mt-100" />
+      <Features />
       <VenueTypes />
       <Waitlist />
       <Footer />

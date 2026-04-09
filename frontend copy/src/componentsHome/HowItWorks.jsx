@@ -1,6 +1,6 @@
 export default function HowItWorks() {
   return (
-    <section id="how-it-works" className="py-24 relative overflow-hidden" style={{ background: 'var(--bg-deep)' }}>
+    <section id="how-it-works" className="py-10 relative overflow-hidden" style={{ background: 'var(--bg-deep)' }}>
       <div className="radial-glow pulse-glow" style={{ top: '50%', right: '-200px', transform: 'translateY(-50%)' }}></div>
       <div className="radial-glow pulse-glow" style={{ top: '20%', left: '-200px', animationDelay: '2s' }}></div>
 
@@ -35,47 +35,7 @@ export default function HowItWorks() {
                 <div className="glass-card rounded-2xl p-8 inline-block feature-card">
                   <div className="w-48 h-48 rounded-2xl flex items-center justify-center mb-6 mx-auto md:ml-auto md:mr-0 glow-purple relative overflow-hidden p-4" 
                        style={{ background: 'white', boxShadow: '0 0 60px rgba(168, 85, 247, 0.6), 0 0 100px rgba(168, 85, 247, 0.3)' }}>
-                    <svg className="w-full h-full" viewBox="0 0 33 33" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <rect x="0" y="0" width="7" height="7" fill="#000" />
-                      <rect x="1" y="1" width="5" height="5" fill="#FFF" />
-                      <rect x="2" y="2" width="3" height="3" fill="#000" />
-                      <rect x="26" y="0" width="7" height="7" fill="#000" />
-                      <rect x="27" y="1" width="5" height="5" fill="#FFF" />
-                      <rect x="28" y="2" width="3" height="3" fill="#000" />
-                      <rect x="0" y="26" width="7" height="7" fill="#000" />
-                      <rect x="1" y="27" width="5" height="5" fill="#FFF" />
-                      <rect x="2" y="28" width="3" height="3" fill="#000" />
-                      <rect x="8" y="6" width="1" height="1" fill="#000" />
-                      <rect x="10" y="6" width="1" height="1" fill="#000" />
-                      <rect x="12" y="6" width="1" height="1" fill="#000" />
-                      <rect x="14" y="6" width="1" height="1" fill="#000" />
-                      <rect x="16" y="6" width="1" height="1" fill="#000" />
-                      <rect x="18" y="6" width="1" height="1" fill="#000" />
-                      <rect x="20" y="6" width="1" height="1" fill="#000" />
-                      <rect x="22" y="6" width="1" height="1" fill="#000" />
-                      <rect x="24" y="6" width="1" height="1" fill="#000" />
-                      <rect x="6" y="8" width="1" height="1" fill="#000" />
-                      <rect x="6" y="10" width="1" height="1" fill="#000" />
-                      <rect x="6" y="12" width="1" height="1" fill="#000" />
-                      <rect x="6" y="14" width="1" height="1" fill="#000" />
-                      <rect x="6" y="16" width="1" height="1" fill="#000" />
-                      <rect x="6" y="18" width="1" height="1" fill="#000" />
-                      <rect x="6" y="20" width="1" height="1" fill="#000" />
-                      <rect x="6" y="22" width="1" height="1" fill="#000" />
-                      <rect x="6" y="24" width="1" height="1" fill="#000" />
-                      <rect x="22" y="22" width="5" height="5" fill="#000" />
-                      <rect x="23" y="23" width="3" height="3" fill="#FFF" />
-                      <rect x="24" y="24" width="1" height="1" fill="#000" />
-                      <rect x="8" y="8" width="1" height="1" fill="#000" />
-                      <rect x="9" y="8" width="1" height="1" fill="#000" />
-                      <rect x="11" y="8" width="1" height="1" fill="#000" />
-                      <rect x="13" y="8" width="1" height="1" fill="#000" />
-                      <rect x="14" y="8" width="1" height="1" fill="#000" />
-                      <rect x="16" y="8" width="1" height="1" fill="#000" />
-                      <rect x="18" y="8" width="1" height="1" fill="#000" />
-                      <rect x="19" y="8" width="1" height="1" fill="#000" />
-                      <rect x="21" y="8" width="1" height="1" fill="#000" />
-                    </svg>
+                    <img src="/QR.png" alt="QR Code" className="w-full h-full object-cover border-transparent" />
                   </div>
                   <h3 className="font-display text-2xl font-bold mb-2">Scan the QR Code</h3>
                   <p style={{ color: 'var(--text-secondary)' }}>Customer scans a QR code at their table or at the bar</p>
@@ -122,7 +82,7 @@ export default function HowItWorks() {
                     <span className="absolute -top-2 -right-2 text-2xl animate-pulse">✨</span>
                   </div>
                   <h3 className="font-display text-2xl font-bold mb-2">Auto-Play Magic ✨</h3>
-                  <p style={{ color: 'var(--text-secondary)' }}>MixMind's AI mixer plays it seamlessly within 10–15 minutes</p>
+                  <p style={{ color: 'var(--text-secondary)' }}>MixMind's AI mixer plays it seamlessly within 5–10 minutes</p>
                 </div>
               </div>
               <div className="hidden md:flex w-14 h-14 rounded-full items-center justify-center font-display font-bold text-xl z-10 glow-purple" 
@@ -138,10 +98,10 @@ export default function HowItWorks() {
         <div className="mt-16 text-center">
           <div className="flex flex-wrap justify-center gap-4 mb-8">
             <div className="px-6 py-3 rounded-full border" style={{ borderColor: 'var(--border)' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>✓ No staff involvement</span>
+              <span style={{ color: 'var(--text-secondary)' }}>✓ Works With or Without DJ</span>
             </div>
             <div className="px-6 py-3 rounded-full border" style={{ borderColor: 'var(--border)' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>✓ No DJ required</span>
+              <span style={{ color: 'var(--text-secondary)' }}>✓ No staff involvement</span>
             </div>
             <div className="px-6 py-3 rounded-full border" style={{ borderColor: 'var(--border)' }}>
               <span style={{ color: 'var(--text-secondary)' }}>✓ No playlists to manage</span>

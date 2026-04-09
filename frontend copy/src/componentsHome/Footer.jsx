@@ -2,7 +2,7 @@ import logo from "../assets/Mixmind.jpeg";
 
 export default function Footer() {
   return (
-    <footer className="py-8 sm:py-12 bg-bg-base border-t" style={{ background: 'var(--bg-base)', borderTopColor: 'var(--border)' }}>
+    <footer className="py-6 sm:py-12 bg-bg-base border-t" style={{ background: 'var(--bg-base)', borderTopColor: 'var(--border)' }}>
       <style>{`
         @keyframes fadeInUp {
           from {
@@ -98,7 +98,7 @@ export default function Footer() {
         }
       `}</style>
       
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 footer-container">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 footer-container ">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6">
           <div className="footer-brand">
             <img src={logo} alt="MixMind Logo" className="footer-logo w-8 sm:w-10 h-8 sm:h-10 rounded-lg" />
@@ -115,6 +115,9 @@ export default function Footer() {
             <p className="text-xs mt-0.5 sm:mt-1" style={{ color: 'var(--text-secondary)' }}>
               UK-based company
             </p>
+             <button onClick={() => window.location.href ="https://docs.google.com/forms/d/e/1FAIpQLSfc7wQEONAs0n6PlzU10OxFul9Xpx-U0djknWBWNL2yHrAOjg/viewform"} className="footer-email text-purple-400 hover:text-purple-300 transition-colors text-sm sm:text-base">
+              Contact Us
+            </button>
           </div>
         </div>
       </div>

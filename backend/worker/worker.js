@@ -28,11 +28,17 @@ async function startWorker() {
         throw new Error("Request not found");
       }
 
-      // if (request.status !== "paid") {
-      //   throw new Error(
-      //     `Request status must be 'paid'. Got ${request.status}`
-      //   );
-      // }
+      // ===== LIVE MODE: Check payment is confirmed before processing =====
+      if (request.checkoutSessionId) {
+        // This is a LIVE mode request - require payment confirmation
+        if (request.paymentStatus !== "captured" && request.paymentStatus !== "paid") {
+          console.log(`⏳ LIVE mode request waiting for payment confirmation`);
+          console.log(`   Current paymentStatus: ${request.paymentStatus}`);
+          console.log(`   Required: "captured" or "paid"`);
+          // Don't fail - retry later when payment completes
+          throw new Error("Waiting for payment confirmation before processing");
+        }
+      }
 
       await Request.updateOne(
         { _id: request._id },

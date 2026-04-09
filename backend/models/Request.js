@@ -9,6 +9,8 @@ const RequestSchema = new Schema(
     artist: { type: String, required: true },
     artistName: { type: String },
     userName: { type: String },
+    phone: { type: String },
+    countryCode: { type: String }, // e.g., "+44", "+1", "+33"
     price: { type: Number, required: true, default: 0 },
 
     status: {
@@ -19,9 +21,10 @@ const RequestSchema = new Schema(
 
     // Payment tracking
     paymentIntentId: { type: String },
+    checkoutSessionId: { type: String },
     paymentStatus: {
       type: String,
-      enum: ["unpaid", "pending", "authorized", "captured", "failed"],
+      enum: ["unpaid", "pending", "authorized", "captured", "failed", "cancelled"],
       default: "unpaid"
     },
     paidAmount: { type: Number, default: 0 },

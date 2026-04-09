@@ -76,7 +76,7 @@ async function simplifiedLivePlaylistRotation(sessionId) {
       
       // Step 1: Go to Mixmind folder
       console.log(`📍 Step 1: Going to Mixmind folder...`);
-      const goToFolderScript = `browser_gotofolder "beatsource:\\Mixmind"`;
+      const goToFolderScript = `browser_gotofolder "beatport:\\Mixmind"`;
       const goToFolderUrl = `${baseUrl}/execute?script=${encodeURIComponent(goToFolderScript)}`;
       
       try {

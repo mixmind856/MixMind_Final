@@ -86,6 +86,18 @@ async function processBeatsourceJob(job) {
       throw new Error(`Request not found: ${requestId}`);
     }
 
+    // ===== LIVE MODE: Check payment is confirmed before processing =====
+    if (request.checkoutSessionId) {
+      // This is a LIVE mode request - require payment confirmation
+      if (request.paymentStatus !== "captured" && request.paymentStatus !== "paid") {
+        console.log(`⏳ LIVE mode: Waiting for payment confirmation before beatsource processing`);
+        console.log(`   Current paymentStatus: ${request.paymentStatus}`);
+        console.log(`   Required: "captured" or "paid"`);
+        throw new Error("Waiting for payment confirmation before processing");
+      }
+      console.log(`✅ LIVE mode: Payment confirmed (${request.paymentStatus})`);
+    }
+
     // Update status to processing
     await Request.updateOne(
       { _id: request._id },

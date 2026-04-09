@@ -4,7 +4,7 @@ export default function Hero() {
   const [ref, isInView] = useInView({ once: true })
   
   return (
-    <section ref={ref} className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
+    <section ref={ref} className="relative min-h-screen flex items-center justify-center overflow-hidden pt-10">
       <style>{`
         .cyber-grid {
           background-image: 
@@ -102,7 +102,7 @@ export default function Hero() {
         </h1>
 
         <p className="hero-subtitle text-lg sm:text-xl md:text-2xl mb-6 sm:mb-10 max-w-3xl mx-auto px-2" style={{ color: 'var(--text-secondary)' }}>
-          An AI-powered song request system where customers pay to request music — fully automated, plug-and-forget.
+          Earn £100-£300 extra per night from customer song requests - Fully automated, zero staff, plug in and forget.
         </p>
 
         <div className="hero-buttons flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center mb-6 sm:mb-10 px-2">
@@ -124,7 +124,7 @@ export default function Hero() {
             <svg className="w-3 sm:w-4 h-3 sm:h-4 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
             </svg>
-            No DJ required
+            Works With or Without DJ
           </div>
           <div className="trust-chip px-3 sm:px-4 py-2 rounded-full flex items-center gap-2 text-xs sm:text-sm">
             <svg className="w-3 sm:w-4 h-3 sm:h-4 text-purple-400" fill="currentColor" viewBox="0 0 20 20">

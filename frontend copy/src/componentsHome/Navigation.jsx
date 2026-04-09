@@ -22,10 +22,18 @@ export default function Navigation({ onLoginClick }) {
         <div className="hidden md:flex items-center gap-3">
           <button
             onClick={() => navigate("/browse-venues")}
+            className="glow-button  px-5 py-2.5 rounded-full font-medium text-sm border-2 transition-all hover:scale-105 text-gray-300 cursor-pointer"
+            style={{ borderColor: "rgba(168, 85, 247, 0.5)" }}
+          >
+            Request a Song
+          </button>
+
+          <button
+            onClick={() => navigate("/dj/auth")}
             className="px-5 py-2.5 rounded-full font-medium text-sm border-2 transition-all hover:scale-105 text-gray-300 cursor-pointer"
             style={{ borderColor: "rgba(168, 85, 247, 0.5)" }}
           >
-            Browse Venues
+            DJ Login
           </button>
 
           <button
@@ -36,12 +44,13 @@ export default function Navigation({ onLoginClick }) {
             Venue Login
           </button>
 
-          <button
+          {/* <button
              onClick={() => navigate("/admin/dashboard")}
-            className="glow-button px-5 py-2.5 rounded-full font-medium text-sm text-white cursor-pointer"
+            className="px-5 py-2.5 rounded-full font-medium text-sm border-2 transition-all hover:scale-105 text-gray-300 cursor-pointer"
+            style={{ borderColor: "rgba(168, 85, 247, 0.5)" }}
           >
            Admin
-          </button>
+          </button> */}
         </div>
 
         {/* Mobile Hamburger */}
@@ -66,24 +75,31 @@ export default function Navigation({ onLoginClick }) {
         <div className="md:hidden px-4 pb-4 flex flex-col gap-3">
           <button
             onClick={() => navigate("/browse-venues")}
-            className="w-full px-4 py-2 rounded-lg border text-gray-300"
+            className="w-full px-4 py-2 glow-button text-gray-300 rounded-2xl"
           >
-            Browse Venues
+            Request a Song
+          </button>
+
+          <button
+            onClick={() => navigate("/dj/auth")}
+            className="w-full px-4 py-2 border text-gray-300 rounded-2xl"
+          >
+            DJ Login
           </button>
 
           <button
             onClick={() => onLoginClick("venue")}
-            className="w-full px-4 py-2 rounded-lg border text-gray-300"
+            className="w-full px-4 py-2 border text-gray-300 rounded-2xl"
           >
             Venue Login
           </button>
 
-          <button
+          {/* <button
             onClick={() => navigate("/admin/dashboard")}
-            className="w-full text-center glow-button px-4 py-2 rounded-lg text-white"
+            className="w-full text-center  px-4 py-2 rounded-lg border  text-white"
           >
             Admin
-          </button>
+          </button> */}
         </div>
       )}
     </nav>

@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import DJAccessManagement from "../components/DJAccessManagement";
+import logo from "../assets/Mixmind.jpeg";
+import { Music, Zap, Award, Flame, Info } from "lucide-react";
 
 export default function VenueDashboard() {
   const navigate = useNavigate();
@@ -37,20 +40,31 @@ export default function VenueDashboard() {
     }
     fetchVenueData(token);
   }, [navigate]);
-  // Check if execute API is running
-  useEffect(() => {
-    const checkExecuteAPI = async () => {
-      try {
-        const res = await axios.get("http://localhost:80", { timeout: 2000 });
-        if(res.status === 200) {
-          setisOn(true);
-        }
-      } catch (err) {
-        setisOn(false);
-      }
-    };
-    checkExecuteAPI();
-  }, []);
+
+  // Check if backend is running
+  // useEffect(() => {
+  //   const checkBackendStatus = async () => {
+  //     try {
+  //       const response = await fetch(`${import.meta.env.VITE_API_URL}/check-vdj`, {
+  //         timeout: 2000
+  //       });
+  //       if (response.ok) {
+  //         setisOn(true);
+  //         console.log("✅ Backend is running");
+  //       } else {
+  //         setisOn(false);
+  //       }
+  //     } catch (err) {
+  //       setisOn(false);
+  //       console.log("⚠️ Backend status: unreachable");
+  //     }
+  //   };
+
+  //   checkBackendStatus();
+  //   // Check every 30 seconds
+  //   const interval = setInterval(checkBackendStatus, 30000);
+  //   return () => clearInterval(interval);
+  // }, []);
 
   const fetchVenueData = async (token) => {
     try {
@@ -184,6 +198,9 @@ export default function VenueDashboard() {
     const token = localStorage.getItem("venueToken");
     const newState = !livePlaylistActive;
 
+    console.log(`🎛️ Toggling Live Playlist to: ${newState}`);
+    console.log(`⚠️  DJ Mode is INDEPENDENT and NOT affected`);
+
     try {
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/api/venue/toggle-live-playlist`,
@@ -201,21 +218,28 @@ export default function VenueDashboard() {
         throw new Error("Failed to toggle live playlist");
       }
 
-      setLivePlaylistActive(newState);
+      const data = await response.json();
+      console.log(`📊 Toggle response:`, data);
+      console.log(`   active: ${data.active}`);
+      console.log(`   djMode: ${data.djMode} (unchanged)`);
+
+      // Update ONLY Live Playlist state
+      setLivePlaylistActive(data.active);
       
-      // If enabling live playlist, disable DJ mode
-      if (newState && djMode) {
-        setDJMode(false);
-        setSuccessMsg("✅ Live playlist enabled! DJ Mode automatically disabled. Worker started processing requests.");
-      } else if (newState) {
-        setSuccessMsg("✅ Live playlist enabled! Worker started processing requests.");
+      // DJ Mode state should remain unchanged
+      console.log(`✅ Updated - Live Playlist: ${data.active}, DJ Mode: ${data.djMode} (unchanged)`);
+      
+      if (data.active === true) {
+        setSuccessMsg("✅ Live playlist enabled!");
       } else {
-        setSuccessMsg("Live playlist disabled.");
+        setSuccessMsg("✅ Live playlist disabled!");
       }
 
-      setTimeout(() => setSuccessMsg(""), 3000);
+      setTimeout(() => setSuccessMsg(""), 4000);
     } catch (err) {
+      console.error(`❌ Toggle error:`, err);
       setError(err.message || "Failed to toggle live playlist");
+      setTimeout(() => setError(""), 3000);
     }
   };
 
@@ -299,14 +323,8 @@ export default function VenueDashboard() {
         }
 
         setDJMode(true);
-        
-        // If enabling DJ mode, disable live playlist
-        if (livePlaylistActive) {
-          setLivePlaylistActive(false);
-          setSuccessMsg("✅ DJ Mode enabled! Live Playlist automatically disabled. Share the password with your DJ.");
-        } else {
-          setSuccessMsg("✅ DJ Mode enabled! Share the password with your DJ.");
-        }
+        // DJ Mode is now INDEPENDENT - doesn't affect Live Playlist
+        setSuccessMsg("✅ DJ Mode enabled! Share the password with your DJ. Live Playlist remains unchanged.");
         
         setDjPassword("");
         setShowDJModal(false);
@@ -329,7 +347,8 @@ export default function VenueDashboard() {
         }
 
         setDJMode(false);
-        setSuccessMsg("DJ Mode disabled. Live Playlist is now available.");
+        // DJ Mode is now INDEPENDENT - doesn't affect Live Playlist
+        setSuccessMsg("✅ DJ Mode disabled. Live Playlist remains unchanged.");
         setShowDJModal(false);
       }
 
@@ -462,7 +481,11 @@ export default function VenueDashboard() {
       {/* Header */}
       <div className="bg-black/40 backdrop-blur-md border-b border-purple-500/20 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div>
+         <div className="inline-flex items-center justify-center w-15 h-15 rounded-lg glow-purple" 
+                        style={{ background: "linear-gradient(135deg, #A855F7, #7C3AED)" }}>
+                    <img src={logo} alt="MixMind Logo" className="w-13 h-13" />
+                   </div>
+          <div className="md:-ml-210">
             <h1 className="text-2xl font-bold">Venue Dashboard</h1>
             {venue && <p className="text-gray-400 text-sm">{venue.name}</p>}
           </div>
@@ -492,32 +515,50 @@ export default function VenueDashboard() {
         <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 border border-blue-500/30 rounded-xl p-8 mb-12">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold mb-2">Live Playlist Mode</h2>
-              <p className="text-gray-400">
-                {livePlaylistActive 
-                  ? "✓ Enabled - Worker will automatically process approved requests" 
-                  : "Disabled - Requests must be manually processed"}
-              </p>
+              <h2 className="text-3xl font-bold mb-2">Playlist Mode</h2>
             </div>
-            <button
-              onClick={handleToggleLivePlaylist}
-              className={`px-8 py-3 rounded-lg font-semibold transition-all ${
-                livePlaylistActive
-                  ? "bg-green-600 hover:bg-green-700 text-white"
-                  : "bg-gray-600 hover:bg-gray-700 text-white"
-              }`}
-            >
-              {livePlaylistActive ? "Turn Off" : "Turn On"}
-            </button>
-            <button
-              className={`px-8 py-3 rounded-lg font-semibold transition-all ${
-                isOn
-                  ? "bg-green-600 hover:bg-green-700 text-white"
-                  : "bg-gray-600 hover:bg-gray-700 text-white"
-              }`}
-            >
-              {isOn ? "On" : "Off"}
-            </button>
+            <div className="flex gap-3 items-center">
+              <button
+                onClick={handleToggleLivePlaylist}
+                className={`px-8 py-3 rounded-lg font-semibold ml-20 transition-all ${
+                  livePlaylistActive
+                    ? "bg-green-600 hover:bg-green-700 text-white"
+                    : "bg-gray-600 hover:bg-gray-700 text-white"
+                }`}
+              >
+                {livePlaylistActive ? "Turn Off" : "Turn On"}
+              </button>
+                           <div className="group relative ml-10 flex flex-col items-center cursor-help">
+  
+  {/* Label below the icon */}
+
+  {/* 1. Added 'relative' so the tooltip aligns to this box */}
+{/* 2. Added 'group' so children can react to hovering here */}
+{/* Added tabIndex={0} and focus-within classes to handle "clicks" on mobile */}
+<div 
+  className="relative group -ml-10 flex flex-col items-center cursor-help focus-within:outline-none" 
+  tabIndex={0}
+>
+    <Info size={24} style={{ color: '#22E3A1' }} />
+    <p style={{ color: '#22E3A1' }}>Info.</p>
+
+    {/* Added 'group-focus:opacity-100' and 'group-active:opacity-100' for mobile tap */}
+    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 
+        bg-[#121222]/95 border border-[#a855f7]/40 text-[#C084FC] 
+        px-[14px] py-[10px] rounded-lg text-[12px] whitespace-nowrap 
+        shadow-[0_8px_32px_rgba(0,0,0,0.6)] z-50 
+        opacity-0 pointer-events-none transition-opacity duration-200
+        group-hover:opacity-100 
+        group-focus:opacity-100 
+        group-active:opacity-100">
+        Tooltip Content
+    </div>
+</div>
+
+
+</div>
+
+            </div>
           </div>
         </div>
 
@@ -769,8 +810,15 @@ export default function VenueDashboard() {
           </div>
         )}
 
+        {/* DJ Access Management (NEW DJ USER SYSTEM) */}
+        {djMode && venue && (
+          <div className="mb-12">
+            <DJAccessManagement venueId={venue._id} venueName={venue.name} />
+          </div>
+        )}
+
         {/* Recent Requests */}
-        <div className="bg-white/5 backdrop-blur-md border border-purple-500/20 rounded-xl p-8">
+        {/* <div className="bg-white/5 backdrop-blur-md border border-purple-500/20 rounded-xl p-8">
           <h2 className="text-xl font-bold mb-6">Song Requests</h2>
           {requests.length === 0 ? (
             <p className="text-gray-400 text-center py-8">No song requests yet</p>
@@ -829,7 +877,7 @@ export default function VenueDashboard() {
               </table>
             </div>
           )}
-        </div>
+        </div> */}
       </div>
     </div>
   );

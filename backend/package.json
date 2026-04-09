@@ -4,7 +4,8 @@
   "main": "db.js",
   "scripts": {
     "dev:api": "nodemon server.js",
-    "dev:worker": "nodemon worker/worker.js"
+    "dev:worker": "nodemon queues/songRequestWorker.js",
+    "dev:stack": "nodemon worker/stackProcessor.worker.js"
   },
   "keywords": [],
   "author": "",
@@ -22,8 +23,9 @@
     "ioredis": "^5.8.2",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^9.0.0",
+    "nodemailer": "^8.0.4",
     "playwright": "^1.56.1",
-    "stripe": "^20.0.0"
+    "stripe": "^20.4.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"

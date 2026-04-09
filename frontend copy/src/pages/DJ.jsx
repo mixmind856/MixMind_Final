@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import "./DJ.css";
+import logo from "../assets/Mixmind.jpeg";
 
 export default function DJ() {
   const navigate = useNavigate();
@@ -32,9 +33,11 @@ export default function DJ() {
   useEffect(() => {
     const token = localStorage.getItem("djToken");
     const storedVenueId = localStorage.getItem("djVenueId");
+    const storedVenueName = localStorage.getItem("djVenueName");
     
     if (token && storedVenueId) {
       setDJToken(token);
+      setVenue(storedVenueName || "DJ Mode");
       setShowLoginModal(false);
       fetchDJData(token, storedVenueId);
     } else {
@@ -59,17 +62,25 @@ export default function DJ() {
     setError("");
     
     try {
+      if (!venueId) {
+        throw new Error("Venue ID is missing");
+      }
+
+      if (!djPassword) {
+        throw new Error("DJ password is required");
+      }
+
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/dj/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ venueId, djPassword })
       });
       
-      if (!response.ok) {
-        throw new Error("Invalid DJ password");
-      }
-      
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Invalid DJ password");
+      }
       
       // Store DJ token and venue info
       localStorage.setItem("djToken", data.djToken);
@@ -95,21 +106,40 @@ export default function DJ() {
       setLoading(true);
       setError("");
       
+      console.log(`📡 [DJ Panel] Fetching data for venue: ${vId}`);
+      
+      // Include DJ token in authorization header
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      };
+      
       const [requestsRes, statsRes] = await Promise.all([
-        fetch(`${import.meta.env.VITE_API_URL}/api/dj/requests/${vId}`),
-        fetch(`${import.meta.env.VITE_API_URL}/api/dj/stats/${vId}`)
+        fetch(`${import.meta.env.VITE_API_URL}/api/dj/requests/${vId}`, { headers }),
+        fetch(`${import.meta.env.VITE_API_URL}/api/dj/stats/${vId}`, { headers })
       ]);
       
       if (requestsRes.ok) {
         const requestsData = await requestsRes.json();
+        console.log(`✅ DJ Panel received ${requestsData.length} requests`, requestsData);
         setRequests(requestsData);
+      } else if (requestsRes.status === 401) {
+        console.error(`❌ Unauthorized - DJ token expired`);
+        setError("DJ session expired. Please login again.");
+        handleLogout();
+      } else {
+        const errorData = await requestsRes.json();
+        console.error(`❌ Requests fetch failed: ${requestsRes.status}`, errorData);
+        setError(errorData.error || `Failed to fetch requests (${requestsRes.status})`);
       }
       
       if (statsRes.ok) {
         const statsData = await statsRes.json();
+        console.log(`✅ Stats received:`, statsData);
         setStats(statsData);
       }
     } catch (err) {
+      console.error("❌ Fetch DJ data error:", err);
       setError(err.message || "Failed to fetch data");
     } finally {
       setLoading(false);
@@ -133,12 +163,14 @@ export default function DJ() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`
           },
-          body: JSON.stringify({ venueId: vId })
+          body: JSON.stringify({})
         }
       );
       
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error("Failed to accept request");
+        throw new Error(data.error || "Failed to accept request");
       }
       
       setSuccessMsg("✅ Request accepted!");
@@ -170,14 +202,15 @@ export default function DJ() {
             Authorization: `Bearer ${token}`
           },
           body: JSON.stringify({ 
-            venueId: vId, 
             reason: rejectReason || "Rejected by DJ" 
           })
         }
       );
       
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error("Failed to reject request");
+        throw new Error(data.error || "Failed to reject request");
       }
       
       setSuccessMsg("❌ Request rejected");
@@ -206,7 +239,10 @@ export default function DJ() {
       <div className="dj-login-container">
         <div className="dj-login-modal">
           <div className="dj-login-header">
-            <div className="dj-icon">🎧</div>
+           <div className="inline-flex items-center justify-center w-18 h-18 rounded-lg mb-4 glow-purple" 
+                          style={{ background: "linear-gradient(135deg, #A855F7, #7C3AED)" }}>
+                      <img src={logo} alt="MixMind Logo" className="w-17 h-17" />
+                     </div>
             <h1>DJ Mode</h1>
             <p>Enter your DJ password to manage requests</p>
           </div>
@@ -253,7 +289,11 @@ export default function DJ() {
       <header className="dj-header">
         <div className="dj-header-content">
           <div className="dj-title">
-            <h1>🎧 DJ Control Panel</h1>
+            <div className="inline-flex items-center justify-center w-18 h-18 rounded-lg mb-4 glow-purple" 
+                           style={{ background: "linear-gradient(135deg, #A855F7, #7C3AED)" }}>
+                       <img src={logo} alt="MixMind Logo" className="w-17 h-17" />
+                      </div>
+            <h1> DJ Control Panel</h1>
             <p>{venue || "DJ Mode"}</p>
           </div>
           <button onClick={handleLogout} className="btn-logout">

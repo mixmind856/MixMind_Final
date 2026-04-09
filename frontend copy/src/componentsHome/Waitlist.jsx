@@ -72,13 +72,13 @@ export default function Waitlist() {
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 relative z-10 text-center">
         <div className="waitlist-badge mb-4">
-          <span className="inline-block px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium" 
+          <span className="inline-block px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xl sm:text-sm font-medium" 
                 style={{ background: 'rgba(168, 85, 247, 0.15)', color: 'var(--neon-purple)' }}>
-            🚀 MVP Launching Soon
+            🚀 Ready to see this in your venue?
           </span>
         </div>
 
-        <h2 className="waitlist-title font-display text-3xl sm:text-4xl md:text-5xl font-bold mb-4 sm:mb-6">Be among the first venues</h2>
+        <h2 className="waitlist-title font-display text-3xl sm:text-4xl md:text-5xl font-bold mb-4 sm:mb-6">Don't let your busiest nights go to waste.</h2>
         <p className="waitlist-desc text-base sm:text-xl mb-6 sm:mb-8 px-2" style={{ color: 'var(--text-secondary)' }}>
           We're currently onboarding early venues for exclusive access. Join the waitlist to secure your spot.
         </p>
@@ -105,6 +105,12 @@ export default function Waitlist() {
                 <input 
                   type="email" 
                   placeholder="Email address" 
+                  className="input-field w-full px-4 sm:px-6 py-4 sm:py-5 rounded-xl font-body text-base sm:text-lg"
+                  required
+                />
+                <input 
+                  type="phone" 
+                  placeholder="Phone number" 
                   className="input-field w-full px-4 sm:px-6 py-4 sm:py-5 rounded-xl font-body text-base sm:text-lg"
                   required
                 />

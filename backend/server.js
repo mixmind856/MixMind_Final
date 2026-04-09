@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const connectDB = require("./db");
 const workerManager = require("./worker/workerManager");
+const axios = require("axios");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -21,15 +22,33 @@ app.use(
 app.use(express.json());
 
 // -------------------- ROUTES --------------------
-app.use("/api/admin", require("./api/admin"));
-app.use("/api/requests", require("./api/requests"));
-app.use("/api/payments", require("./api/payment"));
-app.use("/api/stripe", require("./api/stripe")); // webhook route
-app.use("/api/venue", require("./routes/venue")); // venue auth routes
-app.use("/api/dj", require("./api/dj")); // DJ mode routes
+app.use("/api/admin", require("./features/admin"));
+app.use("/api/requests", require("./features/requests"));
+app.use("/api/payments", require("./features/payments"));
+app.use("/api/stripe", require("./features/payments/stripe")); // webhook route
+app.use("/api/venue", require("./features/venues")); // venue auth routes
+app.use("/api/dj", require("./features/dj")); // DJ mode routes
 
-// Health check
-app.get("/health", (req, res) => res.json({ ok: true }));
+// ================== HEALTH CHECK ENDPOINT ==================
+// This endpoint can be called from frontend to check if backend is running
+// It returns status and worker info
+app.get("/health", async (req, res) => {
+  try {
+    await axios.get("http://localhost:80");
+    res.json({ status: true });
+  } catch (err) {
+    res.json({ status: false });
+  }
+});
+
+app.get("/check-vdj", async (req, res) => {
+  try {
+    await axios.get("http://localhost:80");
+    res.json({ status: true });
+  } catch (err) {
+    res.json({ status: false });
+  }
+});
 
 // -------------------- DATABASE & SERVER --------------------
 connectDB()
@@ -49,18 +68,8 @@ connectDB()
           console.log("✅ Beatsource Queue Worker started");
           
           // Start song request queue worker (processes queued song requests sequentially)
-          console.log("🚀 Starting Song Request Queue Worker...");
-          const songRequestWorkerModule = require("./queues/songRequestWorker");
-          let waitCount = 0;
-          while (!songRequestWorkerModule.initialized() && waitCount < 30) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            waitCount++;
-          }
-          if (songRequestWorkerModule.initialized()) {
-            console.log("✅ Song Request Queue Worker started (processing 1 request at a time)");
-          } else {
-            console.error("⚠️  Song Request Queue Worker initialization timeout");
-          }
+          // NOTE: This worker now runs independently via: npm run dev:worker
+          console.log("🚀 Song Request Queue Worker runs independently (npm run dev:worker)");
           
           // Check if any venue has live playlist active
           const activeVenue = await Venue.findOne({ livePlaylistActive: true });

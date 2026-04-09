@@ -77,7 +77,7 @@ export default function BusinessValue() {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
         <div className="text-center mb-12 sm:mb-16" style={{ animation: 'fadeInUp 0.8s ease-out' }}>
-          <span className="text-purple-400 font-medium text-xs sm:text-sm uppercase tracking-wider mb-3 block">The Bottom Line</span>
+          {/* <span className="text-purple-400 font-medium text-xs sm:text-sm uppercase tracking-wider mb-3 block">The Bottom Line</span> */}
           <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold">Real results for your venue</h2>
         </div>
 
@@ -97,7 +97,7 @@ export default function BusinessValue() {
           </div>
           <div className="stat-item stat-card glass-card rounded-2xl p-6 sm:p-8 text-center">
             <div className="text-4xl sm:text-5xl md:text-6xl font-display font-bold gradient-text mb-1 sm:mb-2">
-              10-15
+              5-10
             </div>
             <p className="text-base sm:text-lg" style={{ color: 'var(--text-secondary)' }}>min auto-play</p>
           </div>
@@ -115,7 +115,7 @@ export default function BusinessValue() {
                   </svg>
                 </div>
                 <div>
-                  <h4 className="font-display font-semibold mb-0.5 sm:mb-1 text-sm sm:text-base">{benefit.title}</h4>
+                  <h4 className="font-display font-semibold mb-0.5 sm:mb-1 text-md sm:text-xl">{benefit.title}</h4>
                   <p className="text-xs sm:text-sm" style={{ color: 'var(--text-secondary)' }}>{benefit.desc}</p>
                 </div>
               </div>
